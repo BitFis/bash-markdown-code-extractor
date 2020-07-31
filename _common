@@ -1,0 +1,71 @@
+_COMMON_DIR_ON_LOAD=$(pwd)
+_COMMON_DEFAULT_WORKDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/../data" >/dev/null 2>&1 && pwd )"
+
+# simple function, prints run commands
+# to help to user understand what is happening
+#
+# Setting DRY_RUN will not run the command but print it
+# Setting DEBUG_STEPS will wait for input by user before running command
+#                     to help debug.
+@exec() {
+    echo "> $@"
+    if [ ! -z ${DEBUG+x} ]; then
+        echo "cd $(pwd)" >> $(@run_dir)/commands.log
+        echo "$@" >> $(@run_dir)/commands.log
+    fi
+
+    local run_command=y
+    [ ! -z ${DEBUG_STEPS+x} ] && read -p "(dir:$(pwd)) Run command? [y/n]" run_command </dev/tty
+    [ ! -z ${DRY_RUN+x} ] && run_command=n
+
+    if [[ ! "$run_command" =~ ^[Nn]$ ]]; then
+        eval $@
+        return $?
+    fi
+}
+
+# load file from inside script folder
+# prefixes name with '@script_dir/_'
+@load() {
+    . "$(@script_dir)/_$1"
+}
+
+# return workdir, defaults to {repo}/data, can be overriden
+# by setting WORKDIR or passing the first arg
+@workdir() {
+    if [[ ! -z "$1" ]]; then
+        echo "set WORKDIR"
+        WORKDIR="$1"
+    fi
+
+    if [ -z ${WORKDIR+x} ]; then
+        echo $_COMMON_DEFAULT_WORKDIR
+    else
+        echo $WORKDIR
+    fi
+}
+
+# return script directory
+@script_dir() {
+    echo "$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+}
+
+# return location from which the script has been run
+# !IMPORTANT: _common needs to be included first if that should work
+@run_dir() {
+    echo "${_COMMON_DIR_ON_LOAD}"
+}
+
+# runs provided command if first privded command
+# does not exist
+@run_on_missing() {
+    COMMAND="$1"
+    shift
+    RUN_ON_FAIL="$@"
+
+    if ! command -v "$COMMAND" &> /dev/null
+    then
+        echo "command '${COMMAND}' not found"
+        $RUN_ON_FAIL
+    fi
+}

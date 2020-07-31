@@ -1,0 +1,189 @@
+# Markdown transcript is a library which enables
+# to create bash scripts from a markdown file.
+# The whole point of this script is to create bash scripts
+# by parsing guides and other markdown written documents, which
+# contain guides to install / create / build stuff with bash
+
+# dependencies:
+# - bash
+# - sed
+
+# Guide:
+# run transcript-markdown.sh ${markdown-file}.md
+#  -> Will run the markdown bash code bits as a bash script
+#
+# Extended content with conditional,
+# if before the ```bash trigger there is a content like, the whole block followed is only
+# executed if it returns true
+# [//]: # [[ "$1" == "install" ]]
+# ```bash
+# ```
+
+# const definition
+_MARKDOWN_TRANSCRIPT_ARG_NOT_PROCESSED=10
+_MARKDOWN_TRANSCRIPT_DONT_EXEC_CODE_BLOCK=1
+
+_check_error_code() {
+    _ERROR_CODE=$?
+    if [[ $_ERROR_CODE -ne 0 ]]; then
+        printf "error occured [%d] on line %s:%d\n" $_ERROR_CODE "$MARKDOWN_FILE" $_LINE_NUMBER
+        _process_state=_exit_on_error
+    fi
+}
+
+_run_processors() {
+    while [[ ! -z "$1" ]]; do
+        $1
+        _check_error_code $?
+        shift
+    done
+}
+
+_execute_code_in_box() {
+    LINE=$1
+
+    if [[ "$LINE" =~ \ *\`\`\`\.*$ ]]; then
+        # done
+        _run_processors "${_POST_PROCESSORS[@]}"
+        _POST_PROCESSORS=()
+
+        _process_state=_outside_code_block
+    else
+        COMMAND=$LINE
+        if [[ -n "$_MARKDOWN_TRANSCRIPT_BASH_PREFIX" ]]; then
+            COMMAND=$(echo "$COMMAND" | sed -e "s/${_MARKDOWN_TRANSCRIPT_BASH_PREFIX}//g")
+        fi
+
+        # check multiline
+        if [[ $COMMAND =~ \\$ ]]; then
+            _MULTILINE_CODE_BLOCK="${_MULTILINE_CODE_BLOCK}${COMMAND%?} "
+            return
+        else
+            COMMAND="$_MULTILINE_CODE_BLOCK$COMMAND"
+        fi
+
+        if [[ $COMMAND =~ \#\ .* ]]; then
+            echo "$COMMAND"
+        else
+            @exec $COMMAND
+            _check_error_code $?
+        fi
+        _MULTILINE_CODE_BLOCK=""
+
+    fi
+}
+
+_exit_on_error() {
+    exit $_ERROR_CODE
+}
+
+_outside_code_block() {
+    LINE=$1
+
+    if [[ "$LINE" =~ \>?\ *\`\`\`\ *bash$ ]]; then
+        # reset location
+        cd $_ORIGINAL_LOCATION
+
+        # set to true in module will stop the block from beeing called
+        local _STOP_BLOCK=0
+
+        # if arg is set, default to not execute block
+        [[ ${#_ARGS[@]} -gt 0 ]] && _STOP_BLOCK=$_MARKDOWN_TRANSCRIPT_ARG_NOT_PROCESSED
+
+        # run conditions
+        _run_processors "${_PROCESSORS_QUEUE[@]}"
+        _PROCESSORS_QUEUE=()
+
+        _MARKDOWN_TRANSCRIPT_BASH_PREFIX=$(echo "$LINE" | sed -e 's/```.*//g')
+        if [ $_STOP_BLOCK -eq 0 ]; then
+            # run post processors
+            _run_processors "${_PRE_PROCESSORS[@]}"
+            _PRE_PROCESSORS=()
+
+            # starting block
+            _process_state=_execute_code_in_box
+        else
+            # cleanup
+            _PRE_PROCESSORS=()
+            _POST_PROCESSORS=()
+        fi
+    fi
+
+    # preconditions need to be defined before the code block,
+    # therefore only valid till the code block starts, otherwise it
+    # the preprocessor list will be cleared, valid module names contain a-z,0-9,_
+    if [[ "$LINE" =~ ^\[\/\/\]:\ *\#[a-z0-9_]+\ \(.+\)$ ]]; then # \[\/\/\]:\ *#\([a-z]*\) (*\(.*\))$
+        local PARSED_PRE_PROCESSOR=$(echo "$LINE" | sed 's/^\[\/\/\]:\ *#\([a-z0-9_]*\) (\(.*\))$/\1 \2/')
+        _PROCESSORS_QUEUE+=("_module_$PARSED_PRE_PROCESSOR")
+    else
+        _PROCESSORS_QUEUE=()
+    fi
+}
+
+# read line by line
+transcript_markdown() {
+    MARKDOWN_FILE=$1
+    shift
+    _ARGS=($@)
+
+    _MARKDOWN_TRANSCRIPT_BASH_PREFIX=""
+    _process_state=_outside_code_block
+    _LINE_NUMBER=0
+    _ERROR_CODE=0
+    _ORIGINAL_LOCATION=$(pwd)
+    _MULTILINE_CODE_BLOCK=""
+
+    # called before or after block
+    _PROCESSORS_QUEUE=()
+    # called when block is done
+    _PRE_PROCESSORS=()
+    _POST_PROCESSORS=()
+
+    while IFS= read -r line
+    do
+        _LINE_NUMBER=$((_LINE_NUMBER + 1))
+        $_process_state "$line"
+    done < "$MARKDOWN_FILE"
+}
+
+## conditional_modules
+_module_pre() {
+    _PRE_PROCESSORS[${#_PRE_PROCESSORS[@]}]="@exec $@"
+}
+
+_module_post() {
+    _POST_PROCESSORS[${#_POST_PROCESSORS[@]}]="@exec $@"
+}
+
+_module_conditional() {
+    [[ _STOP_BLOCK -ne 0 ]] && return
+    if eval $@; then
+        _STOP_BLOCK=0
+    else
+        _STOP_BLOCK=$_MARKDOWN_TRANSCRIPT_DONT_EXEC_CODE_BLOCK
+    fi
+}
+
+# check by using a condition if arg at provided position equals provided string
+# arg0 position of arguments
+# arg... should match
+_args_conditional() {
+    local pos=$1
+    shift
+
+    [[ $_STOP_BLOCK -eq $_MARKDOWN_TRANSCRIPT_ARG_NOT_PROCESSED ]] && _STOP_BLOCK=0
+
+    if [[ $_STOP_BLOCK -eq 0 && "${_ARGS[$pos]}" = "$@"  ]]; then
+        _STOP_BLOCK=0
+    else
+        _STOP_BLOCK=1
+    fi
+}
+
+_module_arg2() {
+    _args_conditional 1 "$@"
+}
+
+_module_arg1() {
+    _args_conditional 0 "$@"
+}
