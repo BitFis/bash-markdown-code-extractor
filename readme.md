@@ -40,7 +40,7 @@ cmake -DLINUX_GNU
 ```
 
 ```bash
-[//]: #conditional [[ ! -f [file] ]]
+[//]: #conditional ([[ ! -f [file] ]])
 ```bash
 # only execute block if [file] does not exist
 touch file
