@@ -16,3 +16,33 @@ git clone https://github.com/sstephenson/bats.git
 cd bats
 ./install.sh /usr/local
 ```
+
+## Simple Conditionals
+
+Following a cheatsheet of conditionals to help prevent running commands multiple times.
+Those are valid bash conditions, which are just beeing checked before the actual script
+is run.
+
+```bash
+[//]: #conditional (! command -v [command] &> /dev/null)
+```bash
+# only execute block if [command] does not exist
+sudo apt -y install [command]
+...
+```
+
+```bash
+[//]: #conditional ([[ "$OSTYPE" == "linux-gnu" ]])
+```bash
+# run if OSTYPE is "linux-gnu"
+cmake -DLINUX_GNU
+...
+```
+
+```bash
+[//]: #conditional [[ ! -f [file] ]]
+```bash
+# only execute block if [file] does not exist
+touch file
+...
+```
