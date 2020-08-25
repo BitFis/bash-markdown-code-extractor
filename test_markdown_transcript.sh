@@ -105,6 +105,22 @@ print_test_lines() {
     [[ "${lines[3]}" = "${lines[7]}" ]]
 }
 
+@test "Preview which processors have been run" {
+    cd ${BATS_TEST_DIRNAME}/test_assets
+    DEBUG=1
+    run transcript_markdown "${BATS_TEST_DIRNAME}/test_assets/simple_conditional.md"
+    unset DEBUG
+    cd $last_loc
+
+    echo \$\{lines[0]\}: ${lines[0]}
+
+    [[ "${lines[0]}" =~ ^"run processor:" ]]
+}
+
+@test "After run, location is restored to when the script was called from" {
+    skip "TODO - prevent possible bugs"
+}
+
 @test "Test transcript_markdown run if command does not exist" {
     skip "TODO - module extension"
 }

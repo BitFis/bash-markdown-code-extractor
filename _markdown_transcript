@@ -33,6 +33,8 @@ _check_error_code() {
 
 _run_processors() {
     while [[ ! -z "$1" ]]; do
+        [[ ! -z ${DEBUG+x} ]] && echo "run processor: ${_PROCESSORS_QUEUE[@]}"
+
         $1
         _check_error_code $?
         shift
@@ -99,6 +101,9 @@ _outside_code_block() {
             # run post processors
             _run_processors "${_PRE_PROCESSORS[@]}"
             _PRE_PROCESSORS=()
+
+            # output debug
+            [ ! -z ${DEBUG+x} ] && echo cd $(pwd)
 
             # starting block
             _process_state=_execute_code_in_box

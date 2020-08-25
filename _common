@@ -1,5 +1,7 @@
 _COMMON_DIR_ON_LOAD=$(pwd)
 _COMMON_DEFAULT_WORKDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/../data" >/dev/null 2>&1 && pwd )"
+_COMMON_CALLER_0=($(caller 0))
+_COMMON_INCLUDE_SCRIPT_DIR="$(cd "$( dirname "${_COMMON_CALLER_0[2]}")" >/dev/null 2>&1 && pwd )"
 
 # simple function, prints run commands
 # to help to user understand what is happening
@@ -24,6 +26,22 @@ _COMMON_DEFAULT_WORKDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/../data" >/dev/
     fi
 }
 
+# print error kill, script and print call stack
+die() {
+    echo -e "ERROR: $@"
+
+    # build and print stacktrace with caller
+    local cur_call=(${LINENO} ${FUNCNAME[0]} ${BASH_SOURCE[0]})
+    local i=0
+    while [[ ! -z "${cur_call[@]}" ]]; do
+        echo "   ${cur_call[2]}:${cur_call[0]} - ${cur_call[1]}"
+
+        cur_call=($(caller $i))
+        i=$((i+1))
+    done
+    exit 1
+}
+
 # load file from inside script folder
 # prefixes name with '@script_dir/_'
 @load() {
@@ -45,6 +63,11 @@ _COMMON_DEFAULT_WORKDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/../data" >/dev/
     fi
 }
 
+# return dir of file in which this function was called from
+@include_dir() {
+    echo $_COMMON_INCLUDE_SCRIPT_DIR
+}
+
 # return script directory
 @script_dir() {
     echo "$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
@@ -56,8 +79,7 @@ _COMMON_DEFAULT_WORKDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/../data" >/dev/
     echo "${_COMMON_DIR_ON_LOAD}"
 }
 
-# runs provided command if first privded command
-# does not exist
+# runs provided command if first argument is not a command
 @run_on_missing() {
     COMMAND="$1"
     shift
