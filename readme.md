@@ -1,4 +1,6 @@
 # Bash Scripts
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FBitFis%2Fbash-markdown-code-extractor.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2FBitFis%2Fbash-markdown-code-extractor?ref=badge_shield)
+
 
 Those scripts should help setting things up and prepare the test environment.
 
@@ -46,3 +48,7 @@ cmake -DLINUX_GNU
 touch file
 ...
 ```
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FBitFis%2Fbash-markdown-code-extractor.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2FBitFis%2Fbash-markdown-code-extractor?ref=badge_large)
