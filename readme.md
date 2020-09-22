@@ -46,3 +46,7 @@ cmake -DLINUX_GNU
 touch file
 ...
 ```
+
+## Related projects
+
+- [@mdsh](https://github.com/bashup/mdsh): Enables Multi-Lingual Literate Programming withhin markdown 
